@@ -27,35 +27,35 @@ let game = function() {
     let endTurn = () => {
         if (!gameOver) {
             if (gameBoard.checkWin(turn)) {
-                displayMessage(turn);     
-                gameOver = true; 
+                displayMessage(turn);
+                gameOver = true;
             } else if (gameBoard.boardFilled()) {
-                displayMessage()
+                displayMessage();
                 gameOver = true;
             } else {
                 turncounter += 1;
                 turn = turns[turncounter%turns.length];
             }
             if (turn == 'X') {
-                //CPU turn
-                let cell;
-                let counts = gameBoard.getSymCounts('X');
-                // Prioritize single cells that would give victory (TODO)
-                
-                // Go for center and corners
-                if (gameBoard.isCellEmpty(1, 1)) {
-                    cell = gameBoard.getCell(1, 1);
-                } else if (gameBoard.isCellEmpty(0, 0)) {
-                    cell = gameBoard.getCell(0, 0);
-                } else if (gameBoard.isCellEmpty(2, 0)) {
-                    cell = gameBoard.getCell(2, 0);
-                } else if (gameBoard.isCellEmpty(0, 2)) {
-                    cell = gameBoard.getCell(0, 2);
-                } else if (gameBoard.isCellEmpty(2, 2)) {
-                    cell = gameBoard.getCell(2, 2);
-                } else {
+            //CPU turn
+                // Prioritize single cells that would give victory
+                let cell = gameBoard.getLoneEmptyCell();
+                if (cell == null) {
+                    // Go for center and corners
+                    if (gameBoard.isCellEmpty(1, 1)) {
+                        cell = gameBoard.getCell(1, 1);
+                    } else if (gameBoard.isCellEmpty(0, 0)) {
+                        cell = gameBoard.getCell(0, 0);
+                    } else if (gameBoard.isCellEmpty(2, 0)) {
+                        cell = gameBoard.getCell(2, 0);
+                    } else if (gameBoard.isCellEmpty(0, 2)) {
+                        cell = gameBoard.getCell(0, 2);
+                    } else if (gameBoard.isCellEmpty(2, 2)) {
+                        cell = gameBoard.getCell(2, 2);
+                    } else {
                     // otherwise get a random empty cell
-                    cell = gameBoard.getRandomEmptyCell();
+                        cell = gameBoard.getRandomEmptyCell();
+                    }
                 }
                 gameBoard.setCell(cell, turn);
                 endTurn();
@@ -85,30 +85,38 @@ let gameBoard = function() {
     let board;
 
     let init = () => {
-        if (board != undefined) {
+        let boardContainer = document.getElementById('game-board');
+        document.getElementById('message').textContent = "";
+        if (boardContainer == null) {
+            // If the board doesn't exist yet, create a board container for the new cell divs.
+            let gameArea = document.getElementById('game-area');
+            boardContainer = document.createElement('div');
+            boardContainer.id = 'game-board';
+            gameArea.appendChild(boardContainer);  
+        } else {
+            // If the board exists, remove all previous cell divs from the board.
             for (let row=0; row < board.length; row++) {
                 for (let col=0; col < board[row].length; col++) {
                     board[row][col].cell.remove();
                 }
             }
-        }       
-
+        }
+        // Populate the board data array with empty cells.
         board = [];
-        let boardContainer = document.getElementById('game-board');
         for (let row=0; row < 3; row++) {
             board.push([]);
             for (let col=0; col < 3; col++) {
                 let s = '-';
                 let cDiv = cellDiv(row, col, s);
                 let c = {sym: s, cell: cDiv};
-                               
+                // Add an event listener to each cell div for clicking               
                 cDiv.addEventListener('click', () => {
                     if (game.getTurn() == '0' && !game.getGameOver()) {
                         setCell(c, game.getTurn());
                         game.endTurn();
                     }
                 });
-
+    
                 boardContainer.appendChild(cDiv);
                 board[row].push(c);
             }
@@ -133,36 +141,101 @@ let gameBoard = function() {
          || (board[2][0].sym == turn && board[1][1].sym == turn && board[0][2].sym == turn))
     };
 
-    let getSymCounts = (sym) => {
-        let rowCounts = [];
-        let colCounts = [];
-        let diagCounts = [];
-        for (let row = 0; row < board.length; row++) {
-            let rowSymCount = 0;
-            let colSymCount = 0;
-            for (let col = 0; col < board[row].length; col++) {
-                if (board[row][col].sym == sym) rowSymCount += 1;
-                if (board[col][row].sym == sym) colSymCount += 1;
-
+    let getLoneEmptyCell = () => {
+    // rows 
+        for (let row = 0; row < 3; row++) {
+            let emptyCell = null;
+            let rowSymbol = null;
+            for (let col=0; col < 3; col++) {
+                let c = board[row][col];
+                if (c.sym == '-') {
+                    if (emptyCell == null) {
+                        emptyCell = c;
+                    } else {
+                        emptyCell = null;
+                        break;
+                    }
+                } else {
+                    if (rowSymbol == null) {
+                        rowSymbol = c.sym;
+                    } else if (c.sym != rowSymbol) {
+                        emptyCell = null;
+                        break;
+                    }
+                }
             }
-            rowCounts.push(rowSymCount);
-            colCounts.push(colSymCount);
+            if (emptyCell != null) return emptyCell;
         }
+    // columns
+        for (let col = 0; col < 3; col++) {
+            let emptyCell = null;
+            let rowSymbol = null;
+            for (let row=0; row < 3; row++) {
+                let c = board[row][col];
+                if (c.sym == '-') {
+                    if (emptyCell == null) {
+                        emptyCell = c;
+                    } else {
+                        emptyCell = null;
+                        break;
+                    }
+                } else {
+                    if (rowSymbol == null) {
+                        rowSymbol = c.sym;
+                    } else if (c.sym != rowSymbol) {
+                        emptyCell = null;
+                        break;
+                    }
+                }
+            }
+            if (emptyCell != null) return emptyCell;
+        }
+    // diagonals
+        let emptyCell = null;
+        let rowSymbol = null;
+        for (let i = 0; i < 3; i++) {
 
-        let diagASymCount = 0;
-        let diagBSymCount = 0;
-        let i = 0;
-        let j = 2;
-        while (i < 3) {
-            if (board[i][i].sym == sym) diagASymCount += 1; 
-            if (board[i][j].sym == sym) diagBSymCount += 1;
-            i++;
-            j--;
+            let c = board[i][i];
+            if (c.sym == '-') {
+                if (emptyCell == null) {
+                    emptyCell = c;
+                } else {
+                    emptyCell = null;
+                    break;
+                }
+            } else {
+                if (rowSymbol == null) {
+                    rowSymbol = c.sym;
+                } else if (c.sym != rowSymbol) {
+                    emptyCell = null;
+                    break;
+                }
+            }
         }
-        diagCounts.push(diagASymCount);
-        diagCounts.push(diagBSymCount);
-        return {rowCounts, colCounts, diagCounts};
-    }
+        if (emptyCell != null) return emptyCell;
+        emptyCell = null;
+        rowSymbol = null;
+        for (let i = 0; i < 3; i++) {
+
+            let c = board[i][2-i];
+            if (c.sym == '-') {
+                if (emptyCell == null) {
+                    emptyCell = c;
+                } else {
+                    emptyCell = null;
+                    break;
+                }
+            } else {
+                if (rowSymbol == null) {
+                    rowSymbol = c.sym;
+                } else if (c.sym != rowSymbol) {
+                    emptyCell = null;
+                    break;
+                }
+            }
+        }
+        return emptyCell;
+    };
 
     let boardFilled = () => {
         for (let i=0; i<board.length; i++) {
@@ -202,7 +275,7 @@ let gameBoard = function() {
         return cell;
     }
 
-    return {init, checkWin, boardFilled, getRandomEmptyCell, getCell, setCell, isCellEmpty, getSymCounts};
+    return {init, checkWin, boardFilled, getRandomEmptyCell, getCell, setCell, isCellEmpty, getLoneEmptyCell};
 }();
 
 
